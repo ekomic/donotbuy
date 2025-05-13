@@ -43,7 +43,7 @@ const config: HardhatUserConfig = {
     },
 
     linea: {
-      url: `https://linea-mainnet.infura.io/v3/${INFURA_KEY}`,
+      url: "https://linea-rpc.publicnode.com", //`https://linea-mainnet.infura.io/v3/${INFURA_KEY}`,
       accounts: [PRIVATE_KEY],
     },
   },

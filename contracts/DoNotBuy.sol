@@ -59,47 +59,43 @@ abstract contract Ownable {
     event OwnershipTransferred(address owner);
 }
 
-interface IFactory{
-        function createPair(address tokenA, address tokenB) external returns (address pair);
-        function getPair(address tokenA, address tokenB) external view returns (address pair);
+struct route {
+    address from;
+    address to;
+    bool stable;
+}
+
+interface IFactory {
+    function createPair(address tokenA, address tokenB, bool stable) external returns (address pair);
+    function getPair(address tokenA, address tokenB, bool stable) external view returns (address pair);
 }
 
 interface IRouter {
     function factory() external pure returns (address);
-    function WETH() external pure returns (address);
+    function wETH() external pure returns (address);
+    function getAmountsOut(uint amountIn, route[] calldata routes) external view returns (uint[] memory amounts);
     function addLiquidityETH(
         address token,
+        bool stable,
         uint amountTokenDesired,
         uint amountTokenMin,
         uint amountETHMin,
         address to,
         uint deadline
     ) external payable returns (uint amountToken, uint amountETH, uint liquidity);
-
-    function removeLiquidityWithPermit(
-        address tokenA,
-        address tokenB,
-        uint liquidity,
-        uint amountAMin,
-        uint amountBMin,
-        address to,
-        uint deadline,
-        bool approveMax, uint8 v, bytes32 r, bytes32 s
-    ) external returns (uint amountA, uint amountB);
-
     function swapExactETHForTokensSupportingFeeOnTransferTokens(
         uint amountOutMin,
-        address[] calldata path,
+        route[] calldata routes,
         address to,
         uint deadline
     ) external payable;
-
     function swapExactTokensForETHSupportingFeeOnTransferTokens(
         uint amountIn,
         uint amountOutMin,
-        address[] calldata path,
+        route[] calldata routes,
         address to,
-        uint deadline) external;
+        uint deadline
+    ) external;
 }
 
 contract DoNotBuy is IERC20, Ownable {
@@ -157,15 +153,10 @@ contract DoNotBuy is IERC20, Ownable {
     address internal constant liquidity_receiver = 0xd53686b4298Ac78B1d182E95FeAC1A4DD1D780bD;
 
     constructor() Ownable(msg.sender) {
-        IRouter _router = IRouter(0x610D2f07b7EdC67565160F587F37636194C34E74);
-        address _pair = IFactory(_router.factory()).createPair(address(this), _router.WETH());
-        router = _router;
-        pair = _pair;
         isFeeExempt[address(this)] = true;
         isFeeExempt[liquidity_receiver] = true;
         isFeeExempt[marketing_receiver] = true;
         isFeeExempt[msg.sender] = true;
-        isDividendExempt[address(pair)] = true;
         isDividendExempt[address(msg.sender)] = true;        
         isDividendExempt[address(this)] = true;
         isDividendExempt[address(DEAD)] = true;
@@ -194,6 +185,16 @@ contract DoNotBuy is IERC20, Ownable {
     function startTrading() external onlyOwner {
         require(!tradingAllowed,"trading is already open");
         tradingAllowed = true;
+    }
+
+    function setPair(address _routerAddress) external onlyOwner {
+        require(_routerAddress != address(0), "Router cannot be zero address");
+        router = IRouter(_routerAddress);
+        pair = IFactory(router.factory()).getPair(address(this), router.wETH(), false);
+        if (pair == address(0)) {
+            pair = IFactory(router.factory()).createPair(address(this), router.wETH(), false);
+        }
+        isDividendExempt[pair] = true;
     }
 
     function preTxCheck(address sender, address recipient, uint256 amount) internal view {
@@ -287,6 +288,7 @@ contract DoNotBuy is IERC20, Ownable {
         _approve(address(this), address(router), tokenAmount);
         router.addLiquidityETH{value: ETHAmount}(
             address(this),
+            false,
             tokenAmount,
             0,
             0,
@@ -295,17 +297,36 @@ contract DoNotBuy is IERC20, Ownable {
     }
 
     function swapTokensForETH(uint256 tokenAmount) private {
-        address[] memory path = new address[](2);
-        path[0] = address(this);
-        path[1] = router.WETH();
+        route[] memory routes = new route[](1);
+        routes[0] = route({
+            from: address(this),
+            to: router.wETH(),
+            stable: false
+        });
         _approve(address(this), address(router), tokenAmount);
         router.swapExactTokensForETHSupportingFeeOnTransferTokens(
             tokenAmount,
             0,
-            path,
+            routes,
             address(this),
             block.timestamp);
     }
+
+    function swapETHForRewardToken(uint256 ethAmount) private {
+        route[] memory routes = new route[](1);
+        routes[0] = route({
+            from: router.wETH(),
+            to: reward,
+            stable: true
+        });
+       
+        router.swapExactETHForTokensSupportingFeeOnTransferTokens{value: ethAmount}(
+            0,
+            routes,
+            address(this),
+            block.timestamp);
+    }
+
 
     function shouldSwapBack(address sender, address recipient, uint256 amount) internal view returns (bool) {
         bool aboveMin = amount >= _minTokenAmount;
@@ -366,12 +387,16 @@ contract DoNotBuy is IERC20, Ownable {
 
     function deposit(uint256 amountETH) internal {
         uint256 balanceBefore = IERC20(reward).balanceOf(address(this));
-        address[] memory path = new address[](2);
-        path[0] = router.WETH();
-        path[1] = address(reward);
+        route[] memory routes = new route[](1);
+        routes[0] = route({
+            from: router.wETH(),
+            to: reward,
+            stable: true
+        });
+       
         router.swapExactETHForTokensSupportingFeeOnTransferTokens{value: amountETH}(
             0,
-            path,
+            routes,
             address(this),
             block.timestamp);
         uint256 amount = IERC20(reward).balanceOf(address(this)).sub(balanceBefore);

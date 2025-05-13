@@ -9,8 +9,13 @@ async function main() {
   console.log("Account balance:", hre.ethers.formatEther(balance), "ETH");
 
   // Deploy DoNotBuy contract
-  const DoNotBuy = await hre.ethers.getContractFactory("DoNotBuy");
-  const doNotBuy = await DoNotBuy.deploy();
+ // const DoNotBuy = await hre.ethers.getContractFactory("DoNotBuy");
+  const doNotBuy = await ethers.deployContract('DoNotBuy', {
+    gasLimit: 5000000,
+    //gasPrice: ethers.parseUnits('0.1', 'gwei') // Adjust based on Linea Mainnet
+  });
+
+ // const doNotBuy = await DoNotBuy.deploy();
 
   await doNotBuy.waitForDeployment();
   const contractAddress = await doNotBuy.getAddress();
