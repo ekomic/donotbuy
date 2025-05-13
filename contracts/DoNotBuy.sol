@@ -355,7 +355,7 @@ contract DoNotBuy is IERC20, Ownable {
         if(address(this).balance > uint256(0)){payable(development_receiver).transfer(address(this).balance);}
     }
 
-    function swapBack(address sender, address recipient, uint256 amount) external onlyOwner {
+    function swapBack(address sender, address recipient, uint256 amount) internal {
         if(shouldSwapBack(sender, recipient, amount)){swapAndLiquify(swapThreshold); swapTimes = uint256(0);}
     }
 
