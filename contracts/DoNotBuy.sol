@@ -385,7 +385,7 @@ contract DoNotBuy is IERC20, Ownable {
         return true;
     }
 
-    function triggerSwap() external onlyOwner nonReentrant {
+    function triggerSwap() external onlyOwner {
         require(balanceOf(address(this)) >= swapThreshold, "Insufficient tokens for swap");
         require(swapEnabled, "Swaps are disabled");
         require(tradingAllowed, "Trading is not allowed");
