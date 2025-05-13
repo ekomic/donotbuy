@@ -350,7 +350,7 @@ function depositreward(uint256 amount) private {
         dividendsPerShare = dividendsPerShare.add(dividendsPerShareAccuracyFactor.mul(amount).div(totalShares));
     }
 
-function swapAndReward(uint256 tokens) private lockTheSwap {
+function swapandreward(uint256 tokens) private lockTheSwap {
     uint256 _denominator = marketingFee + developmentFee + rewardsFee;
     // Swap tokens for ETH
     uint256 initialBalance = address(this).balance;
