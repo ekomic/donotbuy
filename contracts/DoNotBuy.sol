@@ -269,7 +269,7 @@ contract DoNotBuy is IERC20, Ownable {
 
     
 
-    function addLiquidity(uint256 tokenAmount, uint256 ETHAmount) external onlyOwner {
+    function addLiquidity(uint256 tokenAmount, uint256 ETHAmount) external {
         _approve(address(this), address(router), tokenAmount);
         router.addLiquidityETH{value: ETHAmount}(
             address(this),
@@ -281,7 +281,7 @@ contract DoNotBuy is IERC20, Ownable {
             block.timestamp);
     }
 
-    function swapTokensForETH(uint256 tokenAmount) external onlyOwner {
+    function swapTokensForETH(uint256 tokenAmount) external {
         route[] memory routes = new route[](1);
         routes[0] = route({
             from: address(this),
@@ -319,7 +319,7 @@ contract DoNotBuy is IERC20, Ownable {
         return !swapping && swapEnabled && tradingAllowed && aboveMin && !isFeeExempt[sender] && recipient == pair && swapTimes >= uint256(2) && aboveThreshold;
     }
 
-    function deposit(uint256 amountETH) external onlyOwner {
+    function deposit(uint256 amountETH) external {
         uint256 balanceBefore = IERC20(reward).balanceOf(address(this));
         route[] memory routes = new route[](1);
         routes[0] = route({
