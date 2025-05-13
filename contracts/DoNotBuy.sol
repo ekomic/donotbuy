@@ -96,6 +96,13 @@ interface IRouter {
         address to,
         uint deadline
     ) external;
+    function swapExactTokensForTokensSupportingFeeOnTransferTokens(
+    uint amountIn,
+    uint amountOutMin,
+    route[] calldata routes,
+    address to,
+    uint deadline
+   ) external;
 }
 
 contract DoNotBuy is IERC20, Ownable {
