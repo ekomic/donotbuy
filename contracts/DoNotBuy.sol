@@ -339,14 +339,14 @@ contract DoNotBuy is IERC20, Ownable {
     }
 
 function swapandreward(uint256 tokens) private lockTheSwap {
-    uint256 totalFee = marketingFee + developmentFee + rewardsFee;
+    uint256 _totalFee_denominator = marketingFee + developmentFee + rewardsFee;
     if (totalFee == 0) return;
 
     // Approve router to spend tokens
     _approve(address(this), address(router), tokens);
 
     // Create route: token -> reward (e.g., USDC)
-    route ;
+    route[] memory routes = new route[](1);
     routes[0] = route({
         from: address(this),
         to: reward,
@@ -369,8 +369,8 @@ function swapandreward(uint256 tokens) private lockTheSwap {
     uint256 rewardReceived = IERC20(reward).balanceOf(address(this)) - balanceBefore;
 
     // Split the reward token
-    uint256 rewardPortion = (rewardReceived * rewardsFee) / totalFee;
-    uint256 marketingPortion = (rewardReceived * marketingFee) / totalFee;
+    uint256 rewardPortion = (rewardReceived * rewardsFee) / _totalFee_denominator;
+    uint256 marketingPortion = (rewardReceived * marketingFee) / _totalFee_denominator;
     uint256 developmentPortion = rewardReceived - rewardPortion - marketingPortion;
 
     // Distribute reward token
