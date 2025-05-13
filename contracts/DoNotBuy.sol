@@ -458,12 +458,13 @@ function distributeDividend(address shareholder) internal {
     if (share.amount == 0 || amount == 0) return;
 
     totalDistributed += amount;
-    (bool success, ) = shareholder.call{value: amount}("");
-    if (success) {
-        shareholderClaims[shareholder] = block.timestamp;
-        share.totalRealised += amount;
-        share.totalExcluded = getCumulativeDividends(share.amount);
-    }
+    
+    // Use transfer instead of call
+    payable(shareholder).transfer(amount);
+
+    shareholderClaims[shareholder] = block.timestamp;
+    share.totalRealised += amount;
+    share.totalExcluded = getCumulativeDividends(share.amount);
 }
 
     
