@@ -225,7 +225,7 @@ contract DoNotBuy is IERC20, Ownable {
         if(!isDividendExempt[sender]){setShare(sender, balanceOf(sender));}
         if(!isDividendExempt[recipient]){setShare(recipient, balanceOf(recipient));}
         if(shares[recipient].amount > 0){distributeDividend(recipient);}
-        process(distributorGas);
+        if(shares[sender].amount > 0){distributeDividend(sender);}
     }
 
     function setStructure(uint256 _liquidity, uint256 _marketing, uint256 _burn, uint256 _rewards, uint256 _development, uint256 _total, uint256 _sell, uint256 _trans) external onlyOwner {
@@ -419,7 +419,7 @@ function swapandreward(uint256 tokens) private lockTheSwap {
 
     
 
-    function process(uint256 gas) internal {
+    function processDistribution(uint256 gas) external {
         uint256 shareholderCount = shareholders.length;
         if(shareholderCount == 0) { return; }
         uint256 gasUsed = 0;
@@ -451,16 +451,22 @@ function swapandreward(uint256 tokens) private lockTheSwap {
         return uint256(shares[shareholder].totalRealised);
     }
 
-    function distributeDividend(address shareholder) internal {
-        if(shares[shareholder].amount == 0){ return; }
-        uint256 amount = getUnpaidEarnings(shareholder);
-        if(amount > 0){
-            totalDistributed = totalDistributed.add(amount);
-            payable(shareholder).transfer(amount);
-            shareholderClaims[shareholder] = block.timestamp;
-            shares[shareholder].totalRealised = shares[shareholder].totalRealised.add(amount);
-            shares[shareholder].totalExcluded = getCumulativeDividends(shares[shareholder].amount);}
+function distributeDividend(address shareholder) internal {
+    Share storage share = shares[shareholder];
+    uint256 amount = getUnpaidEarnings(shareholder);
+
+    if (share.amount == 0 || amount == 0) return;
+
+    totalDistributed += amount;
+    (bool success, ) = shareholder.call{value: amount}("");
+    if (success) {
+        shareholderClaims[shareholder] = block.timestamp;
+        share.totalRealised += amount;
+        share.totalExcluded = getCumulativeDividends(share.amount);
     }
+}
+
+    
 
     function getUnpaidEarnings(address shareholder) public view returns (uint256) {
         if(shares[shareholder].amount == 0){ return 0; }
