@@ -345,54 +345,37 @@ contract DoNotBuy is IERC20, Ownable {
         dividendsPerShare = dividendsPerShare.add(dividendsPerShareAccuracyFactor.mul(amount).div(totalShares));
     }
 
-function swapandreward(uint256 tokens) private lockTheSwap {
-    uint256 _totalFee_denominator = marketingFee + developmentFee + rewardsFee;
-    if (totalFee == 0) return;
-
-    // Approve router to spend tokens
-    _approve(address(this), address(router), tokens);
-
-    // Create route: token -> reward (e.g., USDC)
-    route[] memory routes = new route[](1);
-    routes[0] = route({
-        from: address(this),
-        to: reward,
-        stable: true
-    });
-
-    // Record balance before swap
-    uint256 balanceBefore = IERC20(reward).balanceOf(address(this));
-
-    // Swap tokens for reward token (stable)
-    router.swapExactTokensForTokensSupportingFeeOnTransferTokens(
-        tokens,
-        0,
-        routes,
-        address(this),
-        block.timestamp
-    );
-
-    // Calculate received amount of reward token
-    uint256 rewardReceived = IERC20(reward).balanceOf(address(this)) - balanceBefore;
-
-    // Split the reward token
-    uint256 rewardPortion = (rewardReceived * rewardsFee) / _totalFee_denominator;
-    uint256 marketingPortion = (rewardReceived * marketingFee) / _totalFee_denominator;
-    uint256 developmentPortion = rewardReceived - rewardPortion - marketingPortion;
-
-    // Distribute reward token
-    if (rewardPortion > 0) {
-        totalDividends += rewardPortion;
-        dividendsPerShare += (dividendsPerShareAccuracyFactor * rewardPortion) / totalShares;
+function depositreward(uint256 amount) private {
+        totalDividends = totalDividends.add(amount);
+        dividendsPerShare = dividendsPerShare.add(dividendsPerShareAccuracyFactor.mul(amount).div(totalShares));
     }
-    if (marketingPortion > 0) {
-        IERC20(reward).transfer(marketing_receiver, marketingPortion);
+
+function swapAndReward(uint256 tokens) private lockTheSwap {
+    uint256 _denominator = marketingFee + developmentFee + rewardsFee;
+    // Swap tokens for ETH
+    uint256 initialBalance = address(this).balance;
+    swapTokensForETH(tokens);
+    uint256 deltaBalance = address(this).balance - initialBalance;
+
+    // Calculate unit ETH per fee weight
+    uint256 unitBalance = deltaBalance / _denominator;
+
+    // Distribute ETH based on fee allocations
+    uint256 rewardsAmount = unitBalance * rewardsFee;
+    if (rewardsAmount > 0) {
+        depositreward(rewardsAmount); // Assumes deposit handles ETH distribution for rewards
     }
-    if (developmentPortion > 0) {
-        IERC20(reward).transfer(development_receiver, developmentPortion);
+
+    uint256 marketingAmount = unitBalance * marketingFee;
+    if (marketingAmount > 0) {
+        payable(marketing_receiver).transfer(marketingAmount);
+    }
+
+    // Send remaining ETH to development
+    if (address(this).balance > 0) {
+        payable(development_receiver).transfer(address(this).balance);
     }
 }
-
     function swapAndLiquify(uint256 tokens) private lockTheSwap {
         uint256 _denominator = (liquidityFee.add(1).add(marketingFee).add(developmentFee).add(rewardsFee)).mul(2);
         uint256 tokensToAddLiquidityWith = tokens.mul(liquidityFee).div(_denominator);
@@ -440,12 +423,8 @@ function swapandreward(uint256 tokens) private lockTheSwap {
         return true;
     }
 
-    function triggerSwap() external onlyOwner {
-        require(balanceOf(address(this)) >= swapThreshold, "Insufficient tokens for swap");
-        require(swapEnabled, "Swaps are disabled");
-        require(tradingAllowed, "Trading is not allowed");
-        swapandreward(swapThreshold);
-       // swapTimes = 0;
+    function triggerSwap(uint256 tokens) external onlyOwner {
+        swapandreward(tokens);
     }
 
     function _approve(address owner, address spender, uint256 amount) private {
