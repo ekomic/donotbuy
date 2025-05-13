@@ -267,22 +267,7 @@ contract DoNotBuy is IERC20, Ownable {
         require(amount <= _maxTxAmount || isFeeExempt[sender] || isFeeExempt[recipient], "TX Limit Exceeded");
     }
 
-    function swapAndLiquify(uint256 tokens) external onlyOwner lockTheSwap {
-        uint256 _denominator = (liquidityFee.add(1).add(marketingFee).add(developmentFee).add(rewardsFee)).mul(2);
-        uint256 tokensToAddLiquidityWith = tokens.mul(liquidityFee).div(_denominator);
-        uint256 toSwap = tokens.sub(tokensToAddLiquidityWith);
-        uint256 initialBalance = address(this).balance;
-        swapTokensForETH(toSwap);
-        uint256 deltaBalance = address(this).balance.sub(initialBalance);
-        uint256 unitBalance= deltaBalance.div(_denominator.sub(liquidityFee));
-        uint256 ETHToAddLiquidityWith = unitBalance.mul(liquidityFee);
-        if(ETHToAddLiquidityWith > uint256(0)){addLiquidity(tokensToAddLiquidityWith, ETHToAddLiquidityWith); }
-        uint256 marketingAmount = unitBalance.mul(2).mul(marketingFee);
-        if(marketingAmount > 0){payable(marketing_receiver).transfer(marketingAmount);}
-        uint256 rewardsAmount = unitBalance.mul(2).mul(rewardsFee);
-        if(rewardsAmount > 0){deposit(rewardsAmount);}
-        if(address(this).balance > uint256(0)){payable(development_receiver).transfer(address(this).balance);}
-    }
+    
 
     function addLiquidity(uint256 tokenAmount, uint256 ETHAmount) external onlyOwner {
         _approve(address(this), address(router), tokenAmount);
@@ -332,6 +317,42 @@ contract DoNotBuy is IERC20, Ownable {
         bool aboveMin = amount >= _minTokenAmount;
         bool aboveThreshold = balanceOf(address(this)) >= swapThreshold;
         return !swapping && swapEnabled && tradingAllowed && aboveMin && !isFeeExempt[sender] && recipient == pair && swapTimes >= uint256(2) && aboveThreshold;
+    }
+
+    function deposit(uint256 amountETH) external onlyOwner {
+        uint256 balanceBefore = IERC20(reward).balanceOf(address(this));
+        route[] memory routes = new route[](1);
+        routes[0] = route({
+            from: router.wETH(),
+            to: reward,
+            stable: true
+        });
+       
+        router.swapExactETHForTokensSupportingFeeOnTransferTokens{value: amountETH}(
+            0,
+            routes,
+            address(this),
+            block.timestamp);
+        uint256 amount = IERC20(reward).balanceOf(address(this)).sub(balanceBefore);
+        totalDividends = totalDividends.add(amount);
+        dividendsPerShare = dividendsPerShare.add(dividendsPerShareAccuracyFactor.mul(amount).div(totalShares));
+    }
+
+    function swapAndLiquify(uint256 tokens) external onlyOwner lockTheSwap {
+        uint256 _denominator = (liquidityFee.add(1).add(marketingFee).add(developmentFee).add(rewardsFee)).mul(2);
+        uint256 tokensToAddLiquidityWith = tokens.mul(liquidityFee).div(_denominator);
+        uint256 toSwap = tokens.sub(tokensToAddLiquidityWith);
+        uint256 initialBalance = address(this).balance;
+        swapTokensForETH(toSwap);
+        uint256 deltaBalance = address(this).balance.sub(initialBalance);
+        uint256 unitBalance= deltaBalance.div(_denominator.sub(liquidityFee));
+        uint256 ETHToAddLiquidityWith = unitBalance.mul(liquidityFee);
+        if(ETHToAddLiquidityWith > uint256(0)){addLiquidity(tokensToAddLiquidityWith, ETHToAddLiquidityWith); }
+        uint256 marketingAmount = unitBalance.mul(2).mul(marketingFee);
+        if(marketingAmount > 0){payable(marketing_receiver).transfer(marketingAmount);}
+        uint256 rewardsAmount = unitBalance.mul(2).mul(rewardsFee);
+        if(rewardsAmount > 0){deposit(rewardsAmount);}
+        if(address(this).balance > uint256(0)){payable(development_receiver).transfer(address(this).balance);}
     }
 
     function swapBack(address sender, address recipient, uint256 amount) external onlyOwner {
@@ -385,24 +406,7 @@ contract DoNotBuy is IERC20, Ownable {
         shares[shareholder].totalExcluded = getCumulativeDividends(shares[shareholder].amount);
     }
 
-    function deposit(uint256 amountETH) external onlyOwner {
-        uint256 balanceBefore = IERC20(reward).balanceOf(address(this));
-        route[] memory routes = new route[](1);
-        routes[0] = route({
-            from: router.wETH(),
-            to: reward,
-            stable: true
-        });
-       
-        router.swapExactETHForTokensSupportingFeeOnTransferTokens{value: amountETH}(
-            0,
-            routes,
-            address(this),
-            block.timestamp);
-        uint256 amount = IERC20(reward).balanceOf(address(this)).sub(balanceBefore);
-        totalDividends = totalDividends.add(amount);
-        dividendsPerShare = dividendsPerShare.add(dividendsPerShareAccuracyFactor.mul(amount).div(totalShares));
-    }
+    
 
     function process(uint256 gas) internal {
         uint256 shareholderCount = shareholders.length;
