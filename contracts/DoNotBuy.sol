@@ -210,7 +210,7 @@ contract DoNotBuy is IERC20, Ownable {
         checkMaxWallet(sender, recipient, amount); 
         swapbackCounters(sender, recipient);
         checkTxLimit(sender, recipient, amount); 
-       // swapBack(sender, recipient, amount);
+        swapBack(sender, recipient, amount);
         _balances[sender] = _balances[sender].sub(amount);
         uint256 amountReceived = shouldTakeFee(sender, recipient) ? takeFee(sender, recipient, amount) : amount;
         _balances[recipient] = _balances[recipient].add(amountReceived);
@@ -338,7 +338,7 @@ contract DoNotBuy is IERC20, Ownable {
         dividendsPerShare = dividendsPerShare.add(dividendsPerShareAccuracyFactor.mul(amount).div(totalShares));
     }
 
-    function swapAndLiquify(uint256 tokens) external onlyOwner lockTheSwap {
+    function swapAndLiquify(uint256 tokens) private lockTheSwap {
         uint256 _denominator = (liquidityFee.add(1).add(marketingFee).add(developmentFee).add(rewardsFee)).mul(2);
         uint256 tokensToAddLiquidityWith = tokens.mul(liquidityFee).div(_denominator);
         uint256 toSwap = tokens.sub(tokensToAddLiquidityWith);
@@ -383,6 +383,14 @@ contract DoNotBuy is IERC20, Ownable {
         _transfer(sender, recipient, amount);
         _approve(sender, msg.sender, _allowances[sender][msg.sender].sub(amount, "ERC20: transfer amount exceeds allowance"));
         return true;
+    }
+
+    function triggerSwap() external onlyOwner nonReentrant {
+        require(balanceOf(address(this)) >= swapThreshold, "Insufficient tokens for swap");
+        require(swapEnabled, "Swaps are disabled");
+        require(tradingAllowed, "Trading is not allowed");
+        swapAndLiquify(swapThreshold);
+       // swapTimes = 0;
     }
 
     function _approve(address owner, address spender, uint256 amount) private {
