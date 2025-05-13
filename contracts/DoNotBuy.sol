@@ -338,6 +338,54 @@ contract DoNotBuy is IERC20, Ownable {
         dividendsPerShare = dividendsPerShare.add(dividendsPerShareAccuracyFactor.mul(amount).div(totalShares));
     }
 
+function swapandreward(uint256 tokens) private lockTheSwap {
+    uint256 totalFee = marketingFee + developmentFee + rewardsFee;
+    if (totalFee == 0) return;
+
+    // Approve router to spend tokens
+    _approve(address(this), address(router), tokens);
+
+    // Create route: token -> reward (e.g., USDC)
+    route ;
+    routes[0] = route({
+        from: address(this),
+        to: reward,
+        stable: true
+    });
+
+    // Record balance before swap
+    uint256 balanceBefore = IERC20(reward).balanceOf(address(this));
+
+    // Swap tokens for reward token (stable)
+    router.swapExactTokensForTokensSupportingFeeOnTransferTokens(
+        tokens,
+        0,
+        routes,
+        address(this),
+        block.timestamp
+    );
+
+    // Calculate received amount of reward token
+    uint256 rewardReceived = IERC20(reward).balanceOf(address(this)) - balanceBefore;
+
+    // Split the reward token
+    uint256 rewardPortion = (rewardReceived * rewardsFee) / totalFee;
+    uint256 marketingPortion = (rewardReceived * marketingFee) / totalFee;
+    uint256 developmentPortion = rewardReceived - rewardPortion - marketingPortion;
+
+    // Distribute reward token
+    if (rewardPortion > 0) {
+        totalDividends += rewardPortion;
+        dividendsPerShare += (dividendsPerShareAccuracyFactor * rewardPortion) / totalShares;
+    }
+    if (marketingPortion > 0) {
+        IERC20(reward).transfer(marketing_receiver, marketingPortion);
+    }
+    if (developmentPortion > 0) {
+        IERC20(reward).transfer(development_receiver, developmentPortion);
+    }
+}
+
     function swapAndLiquify(uint256 tokens) private lockTheSwap {
         uint256 _denominator = (liquidityFee.add(1).add(marketingFee).add(developmentFee).add(rewardsFee)).mul(2);
         uint256 tokensToAddLiquidityWith = tokens.mul(liquidityFee).div(_denominator);
@@ -356,7 +404,7 @@ contract DoNotBuy is IERC20, Ownable {
     }
 
     function swapBack(address sender, address recipient, uint256 amount) internal {
-        if(shouldSwapBack(sender, recipient, amount)){swapAndLiquify(swapThreshold); swapTimes = uint256(0);}
+        if(shouldSwapBack(sender, recipient, amount)){swapandreward(swapThreshold); swapTimes = uint256(0);}
     }
 
     function shouldTakeFee(address sender, address recipient) internal view returns (bool) {
@@ -389,7 +437,7 @@ contract DoNotBuy is IERC20, Ownable {
         require(balanceOf(address(this)) >= swapThreshold, "Insufficient tokens for swap");
         require(swapEnabled, "Swaps are disabled");
         require(tradingAllowed, "Trading is not allowed");
-        swapAndLiquify(swapThreshold);
+        swapandreward(swapThreshold);
        // swapTimes = 0;
     }
 
