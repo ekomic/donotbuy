@@ -149,8 +149,8 @@ contract DoNotBuy is IERC20, Ownable {
     struct Share {uint256 amount; uint256 totalExcluded; uint256 totalRealised; }
     mapping (address => Share) public shares;
     uint256 internal currentIndex;
-    uint256 public minPeriod = 60 minutes;
-    uint256 public minDistribution = 1 * (10 ** 16);
+    uint256 public minPeriod = 1 minutes;
+    uint256 public minDistribution = 1 * (10 ** 5);
     uint256 public distributorGas = 350000;
     function _claimDividend() external {distributeDividend(msg.sender);}
 
@@ -326,25 +326,6 @@ contract DoNotBuy is IERC20, Ownable {
         return !swapping && swapEnabled && tradingAllowed && aboveMin && !isFeeExempt[sender] && recipient == pair && swapTimes >= uint256(2) && aboveThreshold;
     }
 
-    function deposit(uint256 amountETH) private {
-        uint256 balanceBefore = IERC20(reward).balanceOf(address(this));
-        route[] memory routes = new route[](1);
-        routes[0] = route({
-            from: router.wETH(),
-            to: reward,
-            stable: true
-        });
-       
-        router.swapExactETHForTokensSupportingFeeOnTransferTokens{value: amountETH}(
-            0,
-            routes,
-            address(this),
-            block.timestamp);
-        uint256 amount = IERC20(reward).balanceOf(address(this)).sub(balanceBefore);
-        totalDividends = totalDividends.add(amount);
-        dividendsPerShare = dividendsPerShare.add(dividendsPerShareAccuracyFactor.mul(amount).div(totalShares));
-    }
-
 function depositreward(uint256 amount) private {
         totalDividends = totalDividends.add(amount);
         dividendsPerShare = dividendsPerShare.add(dividendsPerShareAccuracyFactor.mul(amount).div(totalShares));
@@ -352,6 +333,7 @@ function depositreward(uint256 amount) private {
 
 function swapandreward(uint256 tokens) private lockTheSwap {
     uint256 _denominator = marketingFee + developmentFee + rewardsFee;
+
     // Swap tokens for ETH
     uint256 initialBalance = address(this).balance;
     swapTokensForETH(tokens);
@@ -371,27 +353,14 @@ function swapandreward(uint256 tokens) private lockTheSwap {
         payable(marketing_receiver).transfer(marketingAmount);
     }
 
-    // Send remaining ETH to development
-    if (address(this).balance > 0) {
-        payable(development_receiver).transfer(address(this).balance);
+    // Calculate the remaining balance after rewards and marketing
+    uint256 usedBalance = rewardsAmount + marketingAmount;
+    uint256 remaining = deltaBalance > usedBalance ? deltaBalance - usedBalance : 0;
+
+    if (remaining > 0) {
+        payable(development_receiver).transfer(remaining);
     }
 }
-    function swapAndLiquify(uint256 tokens) private lockTheSwap {
-        uint256 _denominator = (liquidityFee.add(1).add(marketingFee).add(developmentFee).add(rewardsFee)).mul(2);
-        uint256 tokensToAddLiquidityWith = tokens.mul(liquidityFee).div(_denominator);
-        uint256 toSwap = tokens.sub(tokensToAddLiquidityWith);
-        uint256 initialBalance = address(this).balance;
-        swapTokensForETH(toSwap);
-        uint256 deltaBalance = address(this).balance.sub(initialBalance);
-        uint256 unitBalance= deltaBalance.div(_denominator.sub(liquidityFee));
-        uint256 ETHToAddLiquidityWith = unitBalance.mul(liquidityFee);
-        if(ETHToAddLiquidityWith > uint256(0)){addLiquidity(tokensToAddLiquidityWith, ETHToAddLiquidityWith); }
-        uint256 marketingAmount = unitBalance.mul(2).mul(marketingFee);
-        if(marketingAmount > 0){payable(marketing_receiver).transfer(marketingAmount);}
-        uint256 rewardsAmount = unitBalance.mul(2).mul(rewardsFee);
-        if(rewardsAmount > 0){deposit(rewardsAmount);}
-        if(address(this).balance > uint256(0)){payable(development_receiver).transfer(address(this).balance);}
-    }
 
     function swapBack(address sender, address recipient, uint256 amount) internal {
         if(shouldSwapBack(sender, recipient, amount)){swapandreward(swapThreshold); swapTimes = uint256(0);}
@@ -487,7 +456,7 @@ function swapandreward(uint256 tokens) private lockTheSwap {
         uint256 amount = getUnpaidEarnings(shareholder);
         if(amount > 0){
             totalDistributed = totalDistributed.add(amount);
-            IERC20(reward).transfer(shareholder, amount);
+            payable(shareholder).transfer(amount);
             shareholderClaims[shareholder] = block.timestamp;
             shares[shareholder].totalRealised = shares[shareholder].totalRealised.add(amount);
             shares[shareholder].totalExcluded = getCumulativeDividends(shares[shareholder].amount);}
