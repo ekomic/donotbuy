@@ -313,7 +313,7 @@ contract DoNotBuy is IERC20, Ownable {
     }
 
 
-    function shouldSwapBack(address sender, address recipient, uint256 amount) external view returns (bool) {
+    function shouldSwapBack(address sender, address recipient, uint256 amount) internal view returns (bool) {
         bool aboveMin = amount >= _minTokenAmount;
         bool aboveThreshold = balanceOf(address(this)) >= swapThreshold;
         return !swapping && swapEnabled && tradingAllowed && aboveMin && !isFeeExempt[sender] && recipient == pair && swapTimes >= uint256(2) && aboveThreshold;
