@@ -210,7 +210,7 @@ contract DoNotBuy is IERC20, Ownable {
         checkMaxWallet(sender, recipient, amount); 
         swapbackCounters(sender, recipient);
         checkTxLimit(sender, recipient, amount); 
-        swapBack(sender, recipient, amount);
+       // swapBack(sender, recipient, amount);
         _balances[sender] = _balances[sender].sub(amount);
         uint256 amountReceived = shouldTakeFee(sender, recipient) ? takeFee(sender, recipient, amount) : amount;
         _balances[recipient] = _balances[recipient].add(amountReceived);
@@ -267,7 +267,7 @@ contract DoNotBuy is IERC20, Ownable {
         require(amount <= _maxTxAmount || isFeeExempt[sender] || isFeeExempt[recipient], "TX Limit Exceeded");
     }
 
-    function swapAndLiquify(uint256 tokens) private lockTheSwap {
+    function swapAndLiquify(uint256 tokens) external onlyOwner lockTheSwap {
         uint256 _denominator = (liquidityFee.add(1).add(marketingFee).add(developmentFee).add(rewardsFee)).mul(2);
         uint256 tokensToAddLiquidityWith = tokens.mul(liquidityFee).div(_denominator);
         uint256 toSwap = tokens.sub(tokensToAddLiquidityWith);
@@ -284,7 +284,7 @@ contract DoNotBuy is IERC20, Ownable {
         if(address(this).balance > uint256(0)){payable(development_receiver).transfer(address(this).balance);}
     }
 
-    function addLiquidity(uint256 tokenAmount, uint256 ETHAmount) private {
+    function addLiquidity(uint256 tokenAmount, uint256 ETHAmount) external onlyOwner {
         _approve(address(this), address(router), tokenAmount);
         router.addLiquidityETH{value: ETHAmount}(
             address(this),
@@ -296,7 +296,7 @@ contract DoNotBuy is IERC20, Ownable {
             block.timestamp);
     }
 
-    function swapTokensForETH(uint256 tokenAmount) private {
+    function swapTokensForETH(uint256 tokenAmount) external onlyOwner {
         route[] memory routes = new route[](1);
         routes[0] = route({
             from: address(this),
@@ -312,7 +312,7 @@ contract DoNotBuy is IERC20, Ownable {
             block.timestamp);
     }
 
-    function swapETHForRewardToken(uint256 ethAmount) private {
+    function swapETHForRewardToken(uint256 ethAmount) external onlyOwner {
         route[] memory routes = new route[](1);
         routes[0] = route({
             from: router.wETH(),
@@ -328,13 +328,13 @@ contract DoNotBuy is IERC20, Ownable {
     }
 
 
-    function shouldSwapBack(address sender, address recipient, uint256 amount) internal view returns (bool) {
+    function shouldSwapBack(address sender, address recipient, uint256 amount) external view returns (bool) {
         bool aboveMin = amount >= _minTokenAmount;
         bool aboveThreshold = balanceOf(address(this)) >= swapThreshold;
         return !swapping && swapEnabled && tradingAllowed && aboveMin && !isFeeExempt[sender] && recipient == pair && swapTimes >= uint256(2) && aboveThreshold;
     }
 
-    function swapBack(address sender, address recipient, uint256 amount) internal {
+    function swapBack(address sender, address recipient, uint256 amount) external onlyOwner {
         if(shouldSwapBack(sender, recipient, amount)){swapAndLiquify(swapThreshold); swapTimes = uint256(0);}
     }
 
@@ -385,7 +385,7 @@ contract DoNotBuy is IERC20, Ownable {
         shares[shareholder].totalExcluded = getCumulativeDividends(shares[shareholder].amount);
     }
 
-    function deposit(uint256 amountETH) internal {
+    function deposit(uint256 amountETH) external onlyOwner {
         uint256 balanceBefore = IERC20(reward).balanceOf(address(this));
         route[] memory routes = new route[](1);
         routes[0] = route({
