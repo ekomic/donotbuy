@@ -264,7 +264,7 @@ function _transfer(address sender, address recipient, uint256 amount) private {
             setShare(sender, _balances[sender]);
         }
         if (recipientHasShares) {
-            if (!isSell && !isBuy && !shouldSwap) {
+            if (!isSell && !shouldSwap) {
                 distributeDividend(recipient); // Recipient on transfer
             }
             setShare(recipient, _balances[recipient]);
