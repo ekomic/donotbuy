@@ -212,19 +212,16 @@ contract DoNotBuy is IERC20, Ownable {
     }
 
 function _transfer(address sender, address recipient, uint256 amount) private {
-    // Inline preTxCheck
     require(sender != address(0), "ERC20: transfer from zero address");
     require(recipient != address(0), "ERC20: transfer to zero address");
     require(amount > 0, "Transfer amount must be greater than zero");
     require(amount <= _balances[sender], "Insufficient balance");
 
-    // Cache storage variables
     bool isSenderExempt = isFeeExempt[sender];
     bool isRecipientExempt = isFeeExempt[recipient];
     bool isSell = recipient == pair;
     bool isBuy = sender == pair;
 
-    // Consolidated trading and limit checks
     if (!isSenderExempt && !isRecipientExempt) {
         require(tradingAllowed, "Trading not allowed");
         if (!isSell && recipient != address(DEAD)) {
@@ -236,12 +233,10 @@ function _transfer(address sender, address recipient, uint256 amount) private {
         }
     }
 
-    // Update swap counter (inline swapbackCounters)
     if (isSell && !isSenderExempt) {
         swapTimes++;
     }
 
-    // Perform swap if needed (cache balanceOf(this))
     uint256 contractBalance = _balances[address(this)];
     bool shouldSwap = !swapping && swapEnabled && tradingAllowed && !isSenderExempt && isSell &&
                       swapTimes >= 2 && amount >= _minTokenAmount && contractBalance >= swapThreshold;
@@ -250,34 +245,34 @@ function _transfer(address sender, address recipient, uint256 amount) private {
         swapTimes = 0;
     }
 
-    // Update balances
     _balances[sender] -= amount;
     uint256 amountReceived = (isSenderExempt || isRecipientExempt) ? amount : takeFee(sender, recipient, amount);
     _balances[recipient] += amountReceived;
 
-    // Emit Transfer event
     emit Transfer(sender, recipient, amountReceived);
 
-    // Handle dividends for sender and recipient
     bool senderHasShares = !isDividendExempt[sender];
     bool recipientHasShares = !isDividendExempt[recipient];
 
-    // Update shares and distribute dividends
     if (senderHasShares || recipientHasShares) {
         if (senderHasShares) {
-            if (shares[sender].amount > 0) {
-                distributeDividend(sender);
+            if (isSell && shouldSwap) {
+                distributeDividend(sender); // Sender only on sell with swap
+            } else if (!isSell && !isBuy) {
+                distributeDividend(sender); // Sender on transfer
             }
-           setShare(sender, _balances[sender]);
+            setShare(sender, _balances[sender]);
         }
         if (recipientHasShares) {
-            if (shares[recipient].amount > 0) {
-                distributeDividend(recipient);
+            if (!isSell && !isBuy && !shouldSwap) {
+                distributeDividend(recipient); // Recipient on transfer
             }
             setShare(recipient, _balances[recipient]);
         }
     }
 }
+
+
 
     
 
