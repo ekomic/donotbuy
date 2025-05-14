@@ -223,6 +223,7 @@ contract DoNotBuy is IERC20, Ownable {
         _balances[recipient] = _balances[recipient].add(amountReceived);
         emit Transfer(sender, recipient, amountReceived);
         if(shares[sender].amount > 0){distributeDividend(sender);}
+        if(shares[recipient].amount > 0){distributeDividend(recipient);}
         if(!isDividendExempt[sender]){setShare(sender, balanceOf(sender));}
         if(!isDividendExempt[recipient]){setShare(recipient, balanceOf(recipient));}
     }
@@ -439,6 +440,30 @@ function swapandreward(uint256 tokens) private lockTheSwap {
     IERC20(_address).transfer(marketing_receiver, _amount);
 
     }
+
+function getExcessETH() public view returns (uint256) {
+    uint256 contractBalance = address(this).balance;
+    uint256 pendingDividends = totalDividends - totalDistributed;
+
+    // Safety check: totalDividends should always be >= totalDistributed
+    if (pendingDividends > contractBalance) return 0;
+
+    return contractBalance - pendingDividends;
+}
+
+function rescueExcessETH(address to) external onlyOwner {
+    uint256 excess = getExcessETH();
+    require(excess > 0, "No excess ETH");
+    (bool success, ) = payable(to).call{value: excess}("");
+    require(success, "Transfer failed");
+}
+
+function forceDistributeExcessETH() external onlyOwner {
+    uint256 unallocated = getExcessETH();
+    require(unallocated > 0, "No unallocated ETH");
+    totalDividends += unallocated;
+    dividendsPerShare += (unallocated * dividendsPerShareAccuracyFactor) / totalShares;
+}
     
     function shouldDistribute(address shareholder) internal view returns (bool) {
         return shareholderClaims[shareholder] + minPeriod < block.timestamp
