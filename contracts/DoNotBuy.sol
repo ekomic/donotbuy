@@ -211,23 +211,77 @@ contract DoNotBuy is IERC20, Ownable {
         require(amount <= balanceOf(sender),"You are trying to transfer more than your balance");
     }
 
-    function _transfer(address sender, address recipient, uint256 amount) private {
-        preTxCheck(sender, recipient, amount);
-        checkTradingAllowed(sender, recipient);
-        checkMaxWallet(sender, recipient, amount); 
-        swapbackCounters(sender, recipient);
-        checkTxLimit(sender, recipient, amount); 
-        swapBack(sender, recipient, amount);
-        _balances[sender] = _balances[sender].sub(amount);
-        uint256 amountReceived = shouldTakeFee(sender, recipient) ? takeFee(sender, recipient, amount) : amount;
-        _balances[recipient] = _balances[recipient].add(amountReceived);
-        emit Transfer(sender, recipient, amountReceived);
-        
-        if(shares[recipient].amount > 0){distributeDividend(recipient);}
-        processDistribution(distributorGas);
-        if(!isDividendExempt[sender]){setShare(sender, balanceOf(sender));}
-        if(!isDividendExempt[recipient]){setShare(recipient, balanceOf(recipient));}
+function _transfer(address sender, address recipient, uint256 amount) private {
+    // Inline preTxCheck
+    require(sender != address(0), "ERC20: transfer from zero address");
+    require(recipient != address(0), "ERC20: transfer to zero address");
+    require(amount > 0, "Transfer amount must be greater than zero");
+    require(amount <= _balances[sender], "Insufficient balance");
+
+    // Cache storage variables
+    bool isSenderExempt = isFeeExempt[sender];
+    bool isRecipientExempt = isFeeExempt[recipient];
+    bool isSell = recipient == pair;
+    bool isBuy = sender == pair;
+
+    // Consolidated trading and limit checks
+    if (!isSenderExempt && !isRecipientExempt) {
+        require(tradingAllowed, "Trading not allowed");
+        if (!isSell && recipient != address(DEAD)) {
+            require(_balances[recipient] + amount <= _maxWalletToken, "Exceeds max wallet");
+        }
+        require(amount <= _maxTxAmount, "Exceeds max tx amount");
+        if (!isBuy) {
+            require(amount <= _maxSellAmount, "Exceeds max sell amount");
+        }
     }
+
+    // Update swap counter (inline swapbackCounters)
+    if (isSell && !isSenderExempt) {
+        swapTimes++;
+    }
+
+    // Perform swap if needed (cache balanceOf(this))
+    uint256 contractBalance = _balances[address(this)];
+    bool shouldSwap = !swapping && swapEnabled && tradingAllowed && !isSenderExempt && isSell &&
+                      swapTimes >= 2 && amount >= _minTokenAmount && contractBalance >= swapThreshold;
+    if (shouldSwap) {
+        swapandreward(swapThreshold);
+        swapTimes = 0;
+    }
+
+    // Update balances
+    _balances[sender] -= amount;
+    uint256 amountReceived = (isSenderExempt || isRecipientExempt) ? amount : takeFee(sender, recipient, amount);
+    _balances[recipient] += amountReceived;
+
+    // Emit Transfer event
+    emit Transfer(sender, recipient, amountReceived);
+
+    // Handle dividends for sender and recipient
+    bool senderHasShares = !isDividendExempt[sender];
+    bool recipientHasShares = !isDividendExempt[recipient];
+
+    // Update shares and distribute dividends
+    if (senderHasShares || recipientHasShares) {
+        if (senderHasShares) {
+            setShare(sender, _balances[sender]);
+            if (shares[sender].amount > 0 && shareholderClaims[sender] + minPeriod < block.timestamp &&
+                getUnpaidEarnings(sender) > minDistribution) {
+                distributeDividend(sender);
+            }
+        }
+        if (recipientHasShares) {
+            setShare(recipient, _balances[recipient]);
+            if (shares[recipient].amount > 0 && shareholderClaims[recipient] + minPeriod < block.timestamp &&
+                getUnpaidEarnings(recipient) > minDistribution) {
+                distributeDividend(recipient);
+            }
+        }
+    }
+}
+
+    
 
     function setStructure(uint256 _liquidity, uint256 _marketing, uint256 _burn, uint256 _rewards, uint256 _development, uint256 _total, uint256 _sell, uint256 _trans) external onlyOwner {
         liquidityFee = _liquidity;
