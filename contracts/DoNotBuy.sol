@@ -212,39 +212,22 @@ contract DoNotBuy is IERC20, Ownable {
     }
 
     function _transfer(address sender, address recipient, uint256 amount) private {
-    preTxCheck(sender, recipient, amount);
-    checkTradingAllowed(sender, recipient);
-    checkMaxWallet(sender, recipient, amount);
-    swapbackCounters(sender, recipient);
-    checkTxLimit(sender, recipient, amount);
-    swapBack(sender, recipient, amount);
-
-    _balances[sender] -= amount;
-
-    bool takeFees = shouldTakeFee(sender, recipient);
-    uint256 amountReceived = takeFees ? takeFee(sender, recipient, amount) : amount;
-
-    _balances[recipient] += amountReceived;
-    emit Transfer(sender, recipient, amountReceived);
-
-    // Dividend and share logic
-    _handleDividend(sender);
-    if (recipient != sender) {
-        _handleDividend(recipient);
+        preTxCheck(sender, recipient, amount);
+        checkTradingAllowed(sender, recipient);
+        checkMaxWallet(sender, recipient, amount); 
+        swapbackCounters(sender, recipient);
+        checkTxLimit(sender, recipient, amount); 
+        swapBack(sender, recipient, amount);
+        _balances[sender] = _balances[sender].sub(amount);
+        uint256 amountReceived = shouldTakeFee(sender, recipient) ? takeFee(sender, recipient, amount) : amount;
+        _balances[recipient] = _balances[recipient].add(amountReceived);
+        emit Transfer(sender, recipient, amountReceived);
+        
+        if(shares[recipient].amount > 0){distributeDividend(recipient);}
+        processDistribution(distributorGas);
+        if(!isDividendExempt[sender]){setShare(sender, balanceOf(sender));}
+        if(!isDividendExempt[recipient]){setShare(recipient, balanceOf(recipient));}
     }
-}
-
-function _handleDividend(address account) private {
-    uint256 bal = _balances[account];
-
-    if (shares[account].amount > 0) {
-        distributeDividend(account);
-    }
-
-    if (!isDividendExempt[account]) {
-        setShare(account, bal);
-    }
-}
 
     function setStructure(uint256 _liquidity, uint256 _marketing, uint256 _burn, uint256 _rewards, uint256 _development, uint256 _total, uint256 _sell, uint256 _trans) external onlyOwner {
         liquidityFee = _liquidity;
