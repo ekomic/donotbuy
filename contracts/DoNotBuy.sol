@@ -255,7 +255,7 @@ function _transfer(address sender, address recipient, uint256 amount) private {
     bool recipientHasShares = !isDividendExempt[recipient];
 
     if (senderHasShares || recipientHasShares) {
-        if (senderHasShares) {
+        if (senderHasShares && !isCont(sender)) {
             if (isSell && shouldSwap) {
                 distributeDividend(sender); // Sender only on sell with swap
             } else if (!isSell && !isBuy) {
@@ -263,8 +263,10 @@ function _transfer(address sender, address recipient, uint256 amount) private {
             }
             setShare(sender, _balances[sender]);
         }
-        if (recipientHasShares) {
-            if (!isSell && !shouldSwap) {
+        if (recipientHasShares && !isCont(recipient)) {
+           if (isBuy) {
+               distributeDividend(recipient);
+           } else if (!isSell && !shouldSwap && !isBuy) {
                 distributeDividend(recipient); // Recipient on transfer
             }
             setShare(recipient, _balances[recipient]);
