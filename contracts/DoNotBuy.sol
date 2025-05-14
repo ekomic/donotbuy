@@ -474,7 +474,7 @@ function swapandreward(uint256 tokens) private lockTheSwap {
 
     
 
-    function processDistribution(uint256 gas) internal {
+    function processDistribution(uint256 gas) external {
         uint256 shareholderCount = shareholders.length;
         if(shareholderCount == 0) { return; }
         uint256 gasUsed = 0;
