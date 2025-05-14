@@ -122,8 +122,8 @@ contract DoNotBuy is IERC20, Ownable {
     IRouter router;
     address public pair;
     bool private tradingAllowed = false;
-    uint256 private liquidityFee = 200;
-    uint256 private marketingFee = 1800;
+    uint256 private liquidityFee = 0;
+    uint256 private marketingFee = 2000;
     uint256 private rewardsFee = 7000;
     uint256 private developmentFee = 1000;
     uint256 private burnFee = 0;
