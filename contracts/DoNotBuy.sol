@@ -265,18 +265,16 @@ function _transfer(address sender, address recipient, uint256 amount) private {
     // Update shares and distribute dividends
     if (senderHasShares || recipientHasShares) {
         if (senderHasShares) {
-            setShare(sender, _balances[sender]);
-            if (shares[sender].amount > 0 && shareholderClaims[sender] + minPeriod < block.timestamp &&
-                getUnpaidEarnings(sender) > minDistribution) {
+            if (shares[sender].amount > 0) {
                 distributeDividend(sender);
             }
+           setShare(sender, _balances[sender]);
         }
         if (recipientHasShares) {
-            setShare(recipient, _balances[recipient]);
-            if (shares[recipient].amount > 0 && shareholderClaims[recipient] + minPeriod < block.timestamp &&
-                getUnpaidEarnings(recipient) > minDistribution) {
+            if (shares[recipient].amount > 0) {
                 distributeDividend(recipient);
             }
+            setShare(recipient, _balances[recipient]);
         }
     }
 }
