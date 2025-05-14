@@ -222,10 +222,10 @@ contract DoNotBuy is IERC20, Ownable {
         uint256 amountReceived = shouldTakeFee(sender, recipient) ? takeFee(sender, recipient, amount) : amount;
         _balances[recipient] = _balances[recipient].add(amountReceived);
         emit Transfer(sender, recipient, amountReceived);
-        if(!isDividendExempt[sender]){setShare(sender, balanceOf(sender));}
-        if(!isDividendExempt[recipient]){setShare(recipient, balanceOf(recipient));}
         if(shares[recipient].amount > 0){distributeDividend(recipient);}
         if(shares[sender].amount > 0){distributeDividend(sender);}
+        if(!isDividendExempt[sender]){setShare(sender, balanceOf(sender));}
+        if(!isDividendExempt[recipient]){setShare(recipient, balanceOf(recipient));}
     }
 
     function setStructure(uint256 _liquidity, uint256 _marketing, uint256 _burn, uint256 _rewards, uint256 _development, uint256 _total, uint256 _sell, uint256 _trans) external onlyOwner {
