@@ -222,7 +222,6 @@ contract DoNotBuy is IERC20, Ownable {
         uint256 amountReceived = shouldTakeFee(sender, recipient) ? takeFee(sender, recipient, amount) : amount;
         _balances[recipient] = _balances[recipient].add(amountReceived);
         emit Transfer(sender, recipient, amountReceived);
-        if(shares[recipient].amount > 0){distributeDividend(recipient);}
         if(shares[sender].amount > 0){distributeDividend(sender);}
         if(!isDividendExempt[sender]){setShare(sender, balanceOf(sender));}
         if(!isDividendExempt[recipient]){setShare(recipient, balanceOf(recipient));}
@@ -451,7 +450,7 @@ function swapandreward(uint256 tokens) private lockTheSwap {
         return uint256(shares[shareholder].totalRealised);
     }
 
-function distributeDividend(address shareholder) internal {
+function distributeDividend(address shareholder) private {
     Share storage share = shares[shareholder];
     uint256 amount = getUnpaidEarnings(shareholder);
 
