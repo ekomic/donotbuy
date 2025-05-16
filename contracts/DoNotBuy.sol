@@ -154,9 +154,12 @@ contract DoNotBuy is IERC20, Ownable {
     uint256 public distributorGas = 350000;
     function _claimDividend() external {distributeDividend(msg.sender);}
 
+
+    // Mutable receiver addresses
+    address internal marketing_receiver = 0x27DFbEC90EEa392446f71638b70193c6F558c001;
+    address internal development_receiver = 0x0F245A7D374388CD76fC8139Dd900E9B02bF69d7;
+
     address internal constant DEAD = 0x000000000000000000000000000000000000dEaD;
-    address internal constant development_receiver = 0x0F245A7D374388CD76fC8139Dd900E9B02bF69d7; 
-    address internal constant marketing_receiver = 0x27DFbEC90EEa392446f71638b70193c6F558c001;
     address internal constant liquidity_receiver = 0xd53686b4298Ac78B1d182E95FeAC1A4DD1D780bD;
 
     constructor() Ownable(msg.sender) {
@@ -278,17 +281,85 @@ function _transfer(address sender, address recipient, uint256 amount) private {
 
     
 
-    function setStructure(uint256 _liquidity, uint256 _marketing, uint256 _burn, uint256 _rewards, uint256 _development, uint256 _total, uint256 _sell, uint256 _trans) external onlyOwner {
-        liquidityFee = _liquidity;
-        marketingFee = _marketing;
-        burnFee = _burn;
-        rewardsFee = _rewards;
-        developmentFee = _development;
-        totalFee = _total;
-        sellFee = _sell;
-        transferFee = _trans;
-        //require(totalFee <= denominator.div(10) && sellFee <= denominator.div(10) && transferFee <= denominator.div(10), "totalFee and sellFee cannot be more than 10%");
-    }
+   function setStructure(
+    uint256 _liquidity,
+    uint256 _marketing,
+    uint256 _burn,
+    uint256 _rewards,
+    uint256 _development,
+    uint256 _total,
+    uint256 _sell,
+    uint256 _trans
+) external onlyOwner {
+    liquidityFee = _liquidity;
+    marketingFee = _marketing;
+    burnFee = _burn;
+    rewardsFee = _rewards;
+    developmentFee = _development;
+    totalFee = _total;
+    sellFee = _sell;
+    transferFee = _trans;
+    require(
+        totalFee <= denominator.mul(15).div(100) &&
+        sellFee <= denominator.mul(15).div(100) &&
+        transferFee <= denominator.mul(15).div(100),
+        "Fees cannot exceed 15%"
+    );
+}
+
+function getCurrentFeesAsPercent() public view returns (
+    uint256 liquidity,
+    uint256 marketing,
+    uint256 burn,
+    uint256 rewards,
+    uint256 development,
+    uint256 total,
+    uint256 sell,
+    uint256 transfersFee
+) {
+    return (
+        liquidityFee.div(100),
+        marketingFee.div(100),
+        burnFee.div(100),
+        rewardsFee.div(100),
+        developmentFee.div(100),
+        totalFee.div(100),
+        sellFee.div(100),
+        transferFee.div(100)
+    );
+}
+
+
+
+/// @notice Emitted when the marketing receiver address is updated.
+/// @param newReceiver The new marketing receiver address.
+event MarketingReceiverUpdated(address indexed newReceiver);
+
+/// @notice Emitted when the development receiver address is updated.
+/// @param newReceiver The new development receiver address.
+event DevelopmentReceiverUpdated(address indexed newReceiver);
+
+/// @notice Sets a new marketing receiver address.
+/// @param _newReceiver The new address to receive marketing fees.
+/// @dev Only callable by the owner. The new address cannot be the zero address.
+function setMarketingReceiver(address _newReceiver) external onlyOwner {
+    require(_newReceiver != address(0), "Cannot set to zero address");
+    isFeeExempt[marketing_receiver] = false; // Remove exemption from old receiver
+    marketing_receiver = _newReceiver;
+    isFeeExempt[_newReceiver] = true; // Add exemption to new receiver
+    emit MarketingReceiverUpdated(_newReceiver);
+}
+
+/// @notice Sets a new development receiver address.
+/// @param _newReceiver The new address to receive development fees.
+/// @dev Only callable by the owner. The new address cannot be the zero address.
+function setDevelopmentReceiver(address _newReceiver) external onlyOwner {
+    require(_newReceiver != address(0), "Cannot set to zero address");
+    development_receiver = _newReceiver;
+    emit DevelopmentReceiverUpdated(_newReceiver);
+}
+
+
 
     function setisBot(address _address, bool _enabled) external onlyOwner {
         require(_address != address(pair) && _address != address(router) && _address != address(this), "Ineligible Address");
