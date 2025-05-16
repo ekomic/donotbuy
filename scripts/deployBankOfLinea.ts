@@ -1,48 +1,45 @@
-import { ethers, run } from 'hardhat';
-import dotenv from 'dotenv';
-
-dotenv.config({ path: '../.env' });
+const hre = require("hardhat");
 
 async function main() {
-  console.log('Deploying BankOfLinea Contract...');
+  const [deployer] = await hre.ethers.getSigners();
+  console.log("Deploying contracts with the account:", deployer.address);
 
- // const routerAddress = '0x62C0BBfC20F7e2cBCa6b64f5035c8f7fabc1806E'; // Replace with correct address
- // const usdcAddress = '0x885c07e77F18cb0FDBB1bb34F16d83945aa11c04'; // Replace with correct or mock USDC address
+  // Verify deployer balance
+  const balance = await hre.ethers.provider.getBalance(deployer.address);
+  console.log("Account balance:", hre.ethers.formatEther(balance), "ETH");
 
-  const routerAddress = '0x610D2f07b7EdC67565160F587F37636194C34E74'; // Replace with correct address  0x62C0BBfC20F7e2cBCa6b64f5035c8f7fabc1806E
-  const usdcAddress = '0x176211869cA2b568f2A7D4EE941E073a821EE1ff'; // Replace with correct or mock USDC address 0x885c07e77F18cb0FDBB1bb34F16d83945aa11c04
+  // Deploy BankOfLinea contract
+ // const BankOfLinea = await hre.ethers.getContractFactory("BankOfLinea");
+  const BankOfLinea = await ethers.deployContract('BankOfLinea', {
+    gasLimit: 5000000,
+    //gasPrice: ethers.parseUnits('0.1', 'gwei') // Adjust based on Linea Mainnet
+  });
 
+ // const BankOfLinea = await BankOfLinea.deploy();
 
-  if (!ethers.isAddress(routerAddress)) {
-    throw new Error('Invalid routerAddress');
-  }
-  if (!ethers.isAddress(usdcAddress)) {
-    throw new Error('Invalid usdcAddress');
-  }
+  await BankOfLinea.waitForDeployment();
+  const contractAddress = await BankOfLinea.getAddress();
+  console.log("BankOfLinea deployed to:", contractAddress);
 
-  try {
-    const BankOfLinea = await ethers.deployContract('BankOfLinea', { gasLimit: 50000000 });
-    await BankOfLinea.waitForDeployment();
-    const BankOfLineaAddress = await BankOfLinea.getAddress();
-    console.log(`BankOfLinea deployed at: ${BankOfLineaAddress}`);
-
-    await new Promise((resolve) => setTimeout(resolve, 3000));
-
-    await run('verify:verify', {
-      address: BankOfLineaAddress,
-      constructorArguments: [],
-    });
-    console.log('BankOfLinea verified!');
-  } catch (error) {
-    console.error('Deployment failed:', error);
-    if (error.data) {
-      console.error('Revert data:', error.data);
+  // Optional: Verify contract on Linea explorer (if supported)
+  if (hre.network.name === "linea") {
+    console.log("Waiting for 5 confirmations before verification...");
+    await BankOfLinea.deploymentTransaction().wait(5);
+    try {
+      await hre.run("verify:verify", {
+        address: contractAddress,
+        constructorArguments: [],
+      });
+      console.log("Contract verified successfully");
+    } catch (error) {
+      console.error("Verification failed:", error);
     }
-    throw error;
   }
 }
 
-main().catch((error) => {
-  console.error('Deployment error:', error);
-  process.exitCode = 1;
-});
+main()
+  .then(() => process.exit(0))
+  .catch((error) => {
+    console.error(error);
+    process.exit(1);
+  });
