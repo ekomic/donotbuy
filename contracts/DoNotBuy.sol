@@ -330,14 +330,36 @@ function getCurrentFeesAsPercent() public view returns (
 }
 
 
+/// @notice Sets a new swap threshold for triggering token-to-ETH swaps.
+/// @param _newThreshold The new threshold in tokens (must be at least 0.1% of total supply).
+/// @dev Only callable by the owner. Emits no event as state change is trackable via transaction logs.
+function setSwapThreshold(uint256 _newThreshold) external onlyOwner {
+    require(_newThreshold >= (_totalSupply * 100) / 100000, "Threshold cannot be less than 0.1% of total supply");
+    require(_newThreshold <= (_totalSupply * 1000) / 100000, "Threshold cannot exceed 1% of total supply");
+    swapThreshold = _newThreshold;
+    emit SwapThresholdUpdated(_newThreshold);
+}
+
 
 /// @notice Emitted when the marketing receiver address is updated.
 /// @param newReceiver The new marketing receiver address.
 event MarketingReceiverUpdated(address indexed newReceiver);
 
+
 /// @notice Emitted when the development receiver address is updated.
 /// @param newReceiver The new development receiver address.
 event DevelopmentReceiverUpdated(address indexed newReceiver);
+
+
+/// @notice Emitted when tokens are swapped for ETH in the swap and reward system.
+/// @param tokenAmount The amount of tokens swapped.
+/// @param ethReceived The amount of ETH received from the swap.
+event SwapTriggered(uint256 indexed tokenAmount, uint256 ethReceived);
+
+
+/// @notice Emitted when the swap threshold is updated.
+/// @param newThreshold The new swap threshold in tokens.
+event SwapThresholdUpdated(uint256 newThreshold);
 
 /// @notice Sets a new marketing receiver address.
 /// @param _newReceiver The new address to receive marketing fees.
@@ -472,6 +494,8 @@ function swapandreward(uint256 tokens) private lockTheSwap {
     uint256 initialBalance = address(this).balance;
     swapTokensForETH(tokens);
     uint256 deltaBalance = address(this).balance - initialBalance;
+
+    emit SwapTriggered(tokens, deltaBalance);
 
     // Calculate unit ETH per fee weight
     uint256 unitBalance = deltaBalance / _denominator;
