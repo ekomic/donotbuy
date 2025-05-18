@@ -1,38 +1,3 @@
-// File: BankOfLinea.sol
-// Author: [BankOfLinea]
-// Date:- May, 2025.
-
-/**
- * @title BankOfLinea
- * @dev ERC20 token contract with advanced fee mechanisms, dividend distribution, and trading restrictions.
- *      Implements a reward system where fees are collected and distributed to token holders as dividends.
- *      Includes features like anti-bot measures, max transaction limits, and liquidity pool integration.
- *      Utilizes SafeMath for arithmetic operations and integrates with a decentralized exchange router.
- *
- * Key Features:
- * - **Tokenomics**: Configurable fees for marketing, development, and rewards.
- * - **Dividend System**: Distributes ETH rewards to eligible shareholders based on token holdings.
- * - **Trading Controls**: Enforces max transaction, max sell, and max wallet limits to prevent abuse.
- * - **Fee Exemptions**: Allows specific addresses to be exempt from fees and dividend distributions.
- * - **Swap and Liquify**: Automatically swaps tokens for ETH to fund rewards and other fee receivers.
- *
- *
- * Important Notes:
- * - The contract uses Solidity version 0.8.26, which includes built-in overflow checks, but SafeMath is still used for consistency.
- * - Fees are capped at 15% for total, sell, and transfer transactions to ensure fairness.
- * - The dividend distribution mechanism requires sufficient gas and relies on external calls for ETH transfers.
- * - Ensure the router and pair addresses are correctly set before enabling trading.
- * - The contract includes rescue functions for stuck ERC20 tokens and excess ETH, callable only by the owner.
- *
- * License: This contract is licensed under the MIT License.
- * 
- * https://bankoflinea.build/
- * https://linktr.ee/bankoflinea
- * https://x.com/bankoflinea
- * 
- */
-
-
 // SPDX-License-Identifier: MIT
 
 pragma solidity 0.8.26;
@@ -140,14 +105,14 @@ interface IRouter {
    ) external;
 }
 
-contract BankOfLinea is IERC20, Ownable {
+contract DoNotBuy is IERC20, Ownable {
     using SafeMath for uint256;
-    string private constant _name = 'Bank Of Linea';
-    string private constant _symbol = 'BOL';
+    string private constant _name = 'Do Not Buy';
+    string private constant _symbol = 'DNB';
     uint8 private constant _decimals = 18;
     uint256 private _totalSupply = 100000000 * (10 ** _decimals);
-    uint256 private _maxTxAmount = ( _totalSupply * 100 ) / 10000;
-    uint256 private _maxSellAmount = ( _totalSupply * 100 ) / 10000;
+    uint256 private _maxTxAmount = ( _totalSupply * 25 ) / 10000;
+    uint256 private _maxSellAmount = ( _totalSupply * 25 ) / 10000;
     uint256 private _maxWalletToken = ( _totalSupply * 200 ) / 10000;
     mapping (address => uint256) _balances;
     mapping (address => mapping (address => uint256)) private _allowances;
@@ -169,7 +134,7 @@ contract BankOfLinea is IERC20, Ownable {
     bool private swapEnabled = true;
     uint256 private swapTimes;
     bool private swapping; 
-    uint256 private swapThreshold = ( _totalSupply * 500 ) / 100000;
+    uint256 private swapThreshold = ( _totalSupply * 250 ) / 100000;
     uint256 private _minTokenAmount = ( _totalSupply * 10 ) / 100000;
     modifier lockTheSwap {swapping = true; _; swapping = false;}
     address public reward = 0x176211869cA2b568f2A7D4EE941E073a821EE1ff;
@@ -402,15 +367,28 @@ function setDevelopmentReceiver(address _newReceiver) external onlyOwner {
     }
 
     function setParameters(uint256 _buy, uint256 _trans, uint256 _wallet) external onlyOwner {
-        uint256 newTx = (totalSupply() * _buy) / 10000;
-        uint256 newTransfer = (totalSupply() * _trans) / 10000;
-        uint256 newWallet = (totalSupply() * _wallet) / 10000;
-        _maxTxAmount = newTx;
-        _maxSellAmount = newTransfer;
-        _maxWalletToken = newWallet;
-        uint256 limit = totalSupply().mul(5).div(1000);
-        require(newTx >= limit && newTransfer >= limit && newWallet >= limit, "Max TXs and Max Wallet cannot be less than .5%");
-    }
+    require(_buy <= 200 && _trans <= 200 && _wallet <= 200, "Cannot exceed 2%");
+    uint256 newTx = (totalSupply() * _buy) / 10000;
+    uint256 newTransfer = (totalSupply() * _trans) / 10000;
+    uint256 newWallet = (totalSupply() * _wallet) / 10000;
+    _maxTxAmount = newTx;
+    _maxSellAmount = newTransfer;
+    _maxWalletToken = newWallet;
+    uint256 limit = totalSupply().mul(25).div(10000); // 0.25%
+    require(newTx >= limit && newTransfer >= limit && newWallet >= limit, "Max TXs and Max Wallet cannot be less than 0.25%");
+}
+
+
+
+function getMaxTxAmount() public view returns (uint256 amount, uint256 percentage) {
+    return (_maxTxAmount, (_maxTxAmount * 10000) / totalSupply());
+}
+function getMaxSellAmount() public view returns (uint256 amount, uint256 percentage) {
+    return (_maxSellAmount, (_maxSellAmount * 10000) / totalSupply());
+}
+function getMaxWalletAmount() public view returns (uint256 amount, uint256 percentage) {
+    return (_maxWalletToken, (_maxWalletToken * 10000) / totalSupply());
+}
 
     function checkTradingAllowed(address sender, address recipient) internal view {
         if(!isFeeExempt[sender] && !isFeeExempt[recipient]){require(tradingAllowed, "tradingAllowed");}
