@@ -281,7 +281,7 @@ function _transfer(address sender, address recipient, uint256 amount) private {
 
     
 
-   function setStructure(
+  function setStructure(
     uint256 _liquidity,
     uint256 _marketing,
     uint256 _burn,
@@ -300,10 +300,10 @@ function _transfer(address sender, address recipient, uint256 amount) private {
     sellFee = _sell;
     transferFee = _trans;
     require(
-        totalFee <= denominator.mul(15).div(100) &&
-        sellFee <= denominator.mul(15).div(100) &&
-        transferFee <= denominator.mul(15).div(100),
-        "Fees cannot exceed 15%"
+        totalFee <= denominator.mul(30).div(100) &&
+        sellFee <= denominator.mul(30).div(100) &&
+        transferFee <= denominator.mul(30).div(100),
+        "Fees cannot exceed 30%"
     );
 }
 

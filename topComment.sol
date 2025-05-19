@@ -31,3 +31,26 @@
  * https://x.com/bankoflinea
  * 
  */
+
+
+
+
+
+
+// SPDX-License-Identifier: MIT
+/**
+ * @title DoNotBuy
+ * @dev A custom ERC20 token contract with dynamic fee structures, dividend distribution, and trading restrictions.
+ * 
+ * Key Features:
+ * - Implements ERC20 standard with additional functionality for fees and dividends.
+ * - Configurable fees for liquidity, marketing, rewards, development, and burning on transfers, sells, and buys (up to 30% total).
+ * - Automatic token swapping for ETH to fund rewards, marketing, and development when thresholds are met.
+ * - Dividend distribution system that allocates ETH rewards to eligible token holders based on share ownership.
+ * - Trading restrictions including max transaction, sell, and wallet limits to prevent abuse.
+ * - Owner-controlled settings for fee exemptions, bot blacklisting, and dividend exemptions.
+ * - Integration with a decentralized exchange router for liquidity provision and token swaps.
+ * - Safety mechanisms like SafeMath for arithmetic operations and rescue functions for stuck tokens/ETH.
+ * 
+ * Note: The token name "Do Not Buy" suggests a humorous or cautionary branding, but functionality is fully operational.
+ */
