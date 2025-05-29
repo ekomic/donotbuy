@@ -1,3 +1,35 @@
+// File: BankOfLinea.sol
+// Author: [BankOfLinea]
+// Date:- May, 2025.
+
+/**
+ * @title BankOfLinea
+ * @dev   ERC20 token contract with advanced fee mechanisms, dividend distribution, and a max transaction to reduce market manipulation
+ *        Implements a reward system where fees are collected and distributed to token holders as dividends.
+ *        Includes features like anti-bot measures, max transaction limits, and liquidity pool integration.
+ *        Utilizes SafeMath for arithmetic operations and integrates with a decentralized exchange router.
+ *
+ * Key Features:
+ * - **Tokenomics**: Configurable fees for marketing, development, and rewards.
+ * - **Dividend System**: Distributes ETH rewards to eligible shareholders based on token holdings.
+ * - **Trading Controls**: Enforces max transaction, max sell, and max wallet limits to prevent abuse.
+ * - **Fee Exemptions**: Allows specific addresses to be exempt from fees and dividend distributions.
+ * - **Swap and Liquify**: Automatically swaps tokens for ETH to fund rewards and other fee receivers.
+ *
+ *
+ * Important Notes:
+ * - The contract uses Solidity version 0.8.26, which includes built-in overflow checks, but SafeMath is still used for consistency.
+ * - Fees are capped at 30% for total, sell, and transfer transactions to ensure fairness.
+ * - The contract includes rescue functions for stuck ERC20 tokens and excess ETH, callable only by the owner.
+ *
+ * License: This contract is licensed under the MIT License.
+ * 
+ * https://bankoflinea.build/
+ * https://linktr.ee/bankoflinea
+ * https://x.com/bankoflinea
+ * 
+ */
+
 // SPDX-License-Identifier: MIT
 
 pragma solidity 0.8.26;
@@ -105,10 +137,10 @@ interface IRouter {
    ) external;
 }
 
-contract DoNotBuy is IERC20, Ownable {
+contract BankOfLinea is IERC20, Ownable {
     using SafeMath for uint256;
-    string private constant _name = 'Do Not Buy';
-    string private constant _symbol = 'DNB';
+    string private constant _name = 'Bank Of Linea';
+    string private constant _symbol = 'BOL';
     uint8 private constant _decimals = 18;
     uint256 private _totalSupply = 100000000 * (10 ** _decimals);
     uint256 private _maxTxAmount = ( _totalSupply * 25 ) / 10000;
@@ -137,7 +169,6 @@ contract DoNotBuy is IERC20, Ownable {
     uint256 private swapThreshold = ( _totalSupply * 250 ) / 100000;
     uint256 private _minTokenAmount = ( _totalSupply * 10 ) / 100000;
     modifier lockTheSwap {swapping = true; _; swapping = false;}
-    address public reward = 0x176211869cA2b568f2A7D4EE941E073a821EE1ff;
     uint256 public totalShares;
     uint256 public totalDividends;
     uint256 public totalDistributed;
@@ -149,15 +180,15 @@ contract DoNotBuy is IERC20, Ownable {
     struct Share {uint256 amount; uint256 totalExcluded; uint256 totalRealised; }
     mapping (address => Share) public shares;
     uint256 internal currentIndex;
-    uint256 public minPeriod = 1 minutes;
+    uint256 public minPeriod = 60 minutes;
     uint256 public minDistribution = 1 * (10 ** 5);
     uint256 public distributorGas = 350000;
     function _claimDividend() external {distributeDividend(msg.sender);}
 
 
     // Mutable receiver addresses
-    address internal marketing_receiver = 0x27DFbEC90EEa392446f71638b70193c6F558c001;
-    address internal development_receiver = 0x0F245A7D374388CD76fC8139Dd900E9B02bF69d7;
+    address internal marketing_receiver = 0x271c1959cd69909a98D1FAF71C552CB139260fF5;
+    address internal development_receiver = 0xfb997CCc8081798a2fE0b70c576488a5f9E6AB78;
 
     address internal constant DEAD = 0x000000000000000000000000000000000000dEaD;
     address internal constant liquidity_receiver = 0xd53686b4298Ac78B1d182E95FeAC1A4DD1D780bD;
@@ -454,21 +485,6 @@ function getMaxWalletAmount() public view returns (uint256 amount, uint256 perce
         _approve(address(this), address(router), tokenAmount);
         router.swapExactTokensForETHSupportingFeeOnTransferTokens(
             tokenAmount,
-            0,
-            routes,
-            address(this),
-            block.timestamp);
-    }
-
-    function swapETHForRewardToken(uint256 ethAmount) external onlyOwner {
-        route[] memory routes = new route[](1);
-        routes[0] = route({
-            from: router.wETH(),
-            to: reward,
-            stable: true
-        });
-       
-        router.swapExactETHForTokensSupportingFeeOnTransferTokens{value: ethAmount}(
             0,
             routes,
             address(this),

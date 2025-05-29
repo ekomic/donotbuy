@@ -10,21 +10,21 @@ async function main() {
 
   // Deploy BankOfLinea contract
  // const BankOfLinea = await hre.ethers.getContractFactory("BankOfLinea");
-  const DoNotBuy = await ethers.deployContract('DoNotBuy', {
+  const BankOfLinea = await ethers.deployContract('BankOfLinea', {
     gasLimit: 5000000,
     //gasPrice: ethers.parseUnits('0.1', 'gwei') // Adjust based on Linea Mainnet
   });
 
  // const BankOfLinea = await BankOfLinea.deploy();
 
-  await DoNotBuy.waitForDeployment();
-  const contractAddress = await DoNotBuy.getAddress();
-  console.log("DoNotBuy deployed to:", contractAddress);
+  await BankOfLinea.waitForDeployment();
+  const contractAddress = await BankOfLinea.getAddress();
+  console.log("BankOfLinea deployed to:", contractAddress);
 
   // Optional: Verify contract on Linea explorer (if supported)
   if (hre.network.name === "linea") {
     console.log("Waiting for 5 confirmations before verification...");
-    await DoNotBuy.deploymentTransaction().wait(5);
+    await BankOfLinea.deploymentTransaction().wait(5);
     try {
       await hre.run("verify:verify", {
         address: contractAddress,
